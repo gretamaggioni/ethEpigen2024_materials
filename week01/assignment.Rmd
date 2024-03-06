@@ -1,0 +1,16 @@
+# Bioinformatic approaches to regulatory genomics and epigenomics
+
+## Week 01
+
+Let's load the epiwraps library:
+
+```{r}
+library(epiwraps)
+```
+
+And now print the session info:
+
+```{r}
+sessionInfo()
+```
+
