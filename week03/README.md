@@ -9,7 +9,7 @@
 * **Report:**
   * how many reads (and what percentage) were mapped
   * how many peaks were found
-* Plot the signal around one of the peaks
+* Plot the signal around one of the peaks that is located *inside a gene*.
 
 (i.e. your report should contain 3 numbers and 1 plot!)
 
