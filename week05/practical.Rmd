@@ -1,0 +1,105 @@
+---
+title: "week05"
+author: "Pierre-Luc"
+date: "2024/03/24"
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(AnnotationHub)
+  library(ensembldb)
+  library(GenomicRanges)
+  library(epiwraps)
+  library(rtracklayer)
+  library(ggplot2)
+})
+ah <- AnnotationHub(localHub=TRUE)
+ensdb <- ah[["AH89211"]]
+```
+
+## Downloading the data
+
+Downloading peaks and signals for in Bruce mESC, reduced to chr1 to make things more lightweight:
+
+```{r, eval=FALSE}
+options(timeout=1800)
+download.file("https://ethz-ins.org/content/p300_subset.zip", "p300_subset.zip")
+unzip("p300_subset.zip")
+```
+
+## Overlaps between peaks
+
+```{r}
+# to read a single peak file:
+# peaks <- rtracklayer::import("peaks/H3K27ac.bed", format="narrowPeak")
+# to read several peak files:
+# first list the files:
+peakfiles <- list.files("peaks", full.names = TRUE)
+# then give them meaningful names
+names(peakfiles) <- gsub("\\.bed","",basename(peakfiles))
+
+# then loop through them and read them:
+peaks <- lapply(peakfiles, FUN=rtracklayer::import, format="narrowPeak")
+```
+
+```{r}
+lapply(peaks, FUN=function(x) sum(overlapsAny(peaks$p300, x))/length(peaks$p300))
+```
+
+```{r}
+regionOverlaps(peaks)
+regionUpset(peaks, nsets=length(peaks))
+```
+
+```{r}
+regionUpset(peaks, reference = peaks$p300, nsets=length(peaks))
+# if I don't specify a reference, one is made from the union of all peaksets:
+regionUpset(peaks, nsets=length(peaks))
+```
+
+## Visualizing the p300 regions
+
+```{r}
+bwfiles <- list.files("tracks", full.names = TRUE)
+# then give them meaningful names
+names(bwfiles) <- gsub("\\.bw","",basename(bwfiles))
+
+sm <- signal2Matrix(bwfiles, regions=peaks$p300, w=40)
+# we could plot them all on separate scales:
+plotEnrichedHeatmaps(sm, trim = 0.95, multiScale = TRUE)
+# when doing that it can also help to use different colors, e.g.:
+plotEnrichedHeatmaps(sm, trim = 0.95, multiScale = TRUE, 
+                     colors=list("darkred","yellow","black","darkgreen","darkblue",
+                                 viridisLite::inferno(100)))
+```
+
+```{r}
+plotEnrichedHeatmaps(sm, trim = 0.7)
+plotEnrichedHeatmaps(sm[,6])
+```
+
+Looking at a larger interval around p300 peaks:
+
+```{r}
+sm5kb <- signal2Matrix(bwfiles[c(3,5)], regions=peaks$p300, w=100, extend = 5000)
+plotEnrichedHeatmaps(sm5kb, trim = 0.7, row_title="All p300 peaks on chr1")
+```
+
+
+We can also try a quick approximative normalization method, to put everything on a comparable scale:
+
+```{r}
+sm <- renormalizeSignalMatrices(sm, method="top", trim = 0.05)
+plotEnrichedHeatmaps(sm, trim=0.95)
+```
+Now let's have a look at the union of all peaks:
+
+```{r}
+sm <- signal2Matrix(bwfiles, regions=reduce(unlist(GRangesList(peaks))), w=40)
+sm2 <- renormalizeSignalMatrices(sm, method="top")
+plotEnrichedHeatmaps(sm2, trim=0.95) # same scale
+plotEnrichedHeatmaps(sm, trim=0.95, multiScale = TRUE) # separate scales
+plotEnrichedHeatmaps(sm2, trim=0.95, scale_rows = "global") # relative across tracks
+```
+
